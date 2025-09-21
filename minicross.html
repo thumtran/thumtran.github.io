@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini Crossword</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .crossword-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-rows: repeat(5, minmax(0, 1fr));
+      gap: 2px;
+    }
+    .grid-cell {
+      aspect-ratio: 1;
+      width: 100%;
+      position: relative;
+    }
+    .active-across {
+      background-color: #2563eb !important; /* blue-600 */
+    }
+    .active-down {
+      background-color: #2563eb !important; /* blue-600 */
+    }
+    .active-cell {
+      background-color: #3b82f6 !important; /* blue-500 */
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // A complete, functional 5x5 crossword puzzle
+    const gridData = [
+      { letter: 'B', across: 1, down: 1 }, { letter: 'O', across: 1, down: 2 }, { letter: 'A', across: 1, down: null }, { letter: 'T', across: 1, down: 3 }, { letter: 'S', across: 1, down: 4 },
+      { letter: 'L', across: null, down: 1 }, { letter: undefined, across: null, down: null }, { letter: 'P', across: 5, down: null }, { letter: undefined, across: null, down: null }, { letter: 'L', across: null, down: 4 },
+      { letter: 'A', across: null, down: 1 }, { letter: 'O', across: null, down: 6 }, { letter: 'L', across: null, down: 5 }, { letter: 'E', across: null, down: 7 }, { letter: 'S', across: null, down: 4 },
+      { letter: 'N', across: null, down: 1 }, { letter: undefined, across: null, down: null }, { letter: 'E', across: 8, down: null }, { letter: undefined, across: null, down: null }, { letter: 'E', across: null, down: 7 },
+      { letter: 'K', across: null, down: 1 }, { letter: 'E', across: 9, down: 6 }, { letter: 'Y', across: 9, down: null }, { letter: 'S', across: 9, down: 7 }, { letter: undefined, across: null, down: null },
+    ];
+
+    const acrossClues = [
+      { number: 1, clue: 'Small vessels for sailing' },
+      { number: 5, clue: 'A type of pen or stylus' },
+      { number: 8, clue: 'Something simple to do' },
+      { number: 9, clue: 'Used to open a door' },
+    ];
+
+    const downClues = [
+      { number: 1, clue: 'A game played by children' },
+      { number: 2, clue: 'A type of fruit' },
+      { number: 3, clue: 'Opposite of old' },
+      { number: 4, clue: 'A small container for money' },
+      { number: 6, clue: 'A type of fish' },
+      { number: 7, clue: 'A tool for cutting' },
+    ];
+    
+    const App = () => {
+      const [guesses, setGuesses] = useState(Array(25).fill(''));
+      const [activeCell, setActiveCell] = useState(0);
+      const [activeWord, setActiveWord] = useState({ direction: 'across', number: 1 });
+      const [isSolved, setIsSolved] = useState(false);
+      const [message, setMessage] = useState('');
+      const gridRef = useRef(null);
+
+      useEffect(() => {
+        const firstAcrossCell = gridData.findIndex(cell => cell.across === 1);
+        setActiveCell(firstAcrossCell);
+      }, []);
+
+      useEffect(() => {
+        const handleKeyDown = (event) => {
+          if (isSolved) return;
+          const key = event.key.toUpperCase();
+          const cellIndex = activeCell;
+          const cell = gridData[cellIndex];
+
+          if (cell.letter === undefined) return;
+
+          if (/^[A-Z]$/.test(key)) {
+            const newGuesses = [...guesses];
+            newGuesses[cellIndex] = key;
+            setGuesses(newGuesses);
+            
+            if (activeWord.direction === 'across') {
+              let nextAcross = -1;
+              for (let i = cellIndex + 1; i < 25; i++) {
+                if (gridData[i].across === activeWord.number) {
+                  nextAcross = i;
+                  break;
+                }
+              }
+              if (nextAcross !== -1) {
+                setActiveCell(nextAcross);
+              }
+            } else if (activeWord.direction === 'down') {
+              let nextDown = -1;
+              for (let i = cellIndex + 5; i < 25; i += 5) {
+                if (gridData[i].down === activeWord.number) {
+                  nextDown = i;
+                  break;
+                }
+              }
+              if (nextDown !== -1) {
+                setActiveCell(nextDown);
+              }
+            }
+          } else if (key === 'BACKSPACE') {
+            const newGuesses = [...guesses];
+            newGuesses[cellIndex] = '';
+            setGuesses(newGuesses);
+
+            if (activeWord.direction === 'across') {
+              let prevAcross = -1;
+              for (let i = cellIndex - 1; i >= 0; i--) {
+                if (gridData[i].across === activeWord.number) {
+                  prevAcross = i;
+                  break;
+                }
+              }
+              if (prevAcross !== -1) {
+                setActiveCell(prevAcross);
+              }
+            } else if (activeWord.direction === 'down') {
+              let prevDown = -1;
+              for (let i = cellIndex - 5; i >= 0; i -= 5) {
+                if (gridData[i].down === activeWord.number) {
+                  prevDown = i;
+                  break;
+                }
+              }
+              if (prevDown !== -1) {
+                setActiveCell(prevDown);
+              }
+            }
+          } else if (key === 'ARROWLEFT' && cellIndex > 0) {
+            const nextCell = cellIndex - 1;
+            if (gridData[nextCell].letter !== undefined) setActiveCell(nextCell);
+          } else if (key === 'ARROWRIGHT' && cellIndex < 24) {
+            const nextCell = cellIndex + 1;
+            if (gridData[nextCell].letter !== undefined) setActiveCell(nextCell);
+          } else if (key === 'ARROWUP' && cellIndex >= 5) {
+            const nextCell = cellIndex - 5;
+            if (gridData[nextCell].letter !== undefined) setActiveCell(nextCell);
+          } else if (key === 'ARROWDOWN' && cellIndex < 20) {
+            const nextCell = cellIndex + 5;
+            if (gridData[nextCell].letter !== undefined) setActiveCell(nextCell);
+          }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [activeCell, guesses, activeWord, isSolved]);
+
+      const checkAnswers = () => {
+        const correct = gridData.every((cell, i) => cell.letter === undefined || guesses[i] === cell.letter);
+        if (correct) {
+          setIsSolved(true);
+          setMessage('You solved the puzzle!');
+        } else {
+          setMessage('Keep trying!');
+        }
+      };
+
+      const handleCellClick = (cell, index) => {
+        if (cell.letter === undefined) return;
+        setActiveCell(index);
+        
+        if (activeWord.direction === 'across') {
+          if (cell.down) {
+            setActiveWord({ direction: 'down', number: cell.down });
+          } else if (cell.across) {
+            setActiveWord({ direction: 'across', number: cell.across });
+          }
+        } else if (activeWord.direction === 'down') {
+          if (cell.across) {
+            setActiveWord({ direction: 'across', number: cell.across });
+          } else if (cell.down) {
+            setActiveWord({ direction: 'down', number: cell.down });
+          }
+        }
+      };
+
+      const handleClueClick = (clue, direction) => {
+        const firstCellInClue = gridData.findIndex(cell => cell[direction] === clue.number);
+        setActiveCell(firstCellInClue);
+        setActiveWord({ direction, number: clue.number });
+      };
+
+      const renderGrid = () => (
+        <div ref={gridRef} className="crossword-grid w-full max-w-sm mx-auto">
+          {gridData.map((cell, index) => {
+            const isBlackCell = cell.letter === undefined;
+            const isAcrossActive = cell.across && cell.across === activeWord.number && activeWord.direction === 'across';
+            const isDownActive = cell.down && cell.down === activeWord.number && activeWord.direction === 'down';
+            const isActiveCell = index === activeCell;
+
+            return (
+              <div
+                key={index}
+                onClick={() => handleCellClick(cell, index)}
+                className={`grid-cell flex items-center justify-center border border-gray-600 rounded-sm
+                            ${isBlackCell ? 'bg-gray-800' : 'bg-white text-gray-900 font-bold text-xl cursor-pointer'}
+                            ${isAcrossActive ? 'active-across' : ''}
+                            ${isDownActive ? 'active-down' : ''}
+                            ${isActiveCell && !isBlackCell ? 'active-cell' : ''}`}
+              >
+                {!isBlackCell && (
+                  <>
+                    {cell.across && <span className="absolute top-0 left-0 text-xs text-gray-500 p-1">{cell.across}</span>}
+                    {cell.down && <span className="absolute top-0 left-0 text-xs text-gray-500 p-1">{cell.down}</span>}
+                    <span className="text-gray-900 uppercase">{guesses[index]}</span>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+
+      const renderClues = (clues, direction) => (
+        <div className="w-full">
+          <h2 className="text-xl font-bold mb-2 uppercase">{direction}</h2>
+          <ul>
+            {clues.map(clue => (
+              <li
+                key={clue.number}
+                onClick={() => handleClueClick(clue, direction)}
+                className={`text-sm mb-1 cursor-pointer p-1 rounded-md
+                            ${activeWord.number === clue.number && activeWord.direction === direction ? 'bg-gray-700 font-bold' : ''}`}
+              >
+                <span className="font-bold mr-2">{clue.number}.</span>
+                {clue.clue}
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+
+      return (
+        <div className="flex flex-col items-center justify-center p-4">
+          <h1 className="text-4xl sm:text-5xl font-bold mb-8 text-yellow-500">Mini Crossword</h1>
+
+          {isSolved && (
+            <div className="text-center mb-4">
+              <p className="text-2xl font-bold text-green-500">Congratulations! You solved it!</p>
+            </div>
+          )}
+
+          <div className="w-full flex items-center justify-center">
+            {renderGrid()}
+          </div>
+          
+
+          <div className="w-full max-w-xl mx-auto mt-8 flex flex-col sm:flex-row gap-8">
+            {renderClues(acrossClues, 'across')}
+            {renderClues(downClues, 'down')}
+          </div>
+          <button
+            onClick={checkAnswers}
+            className="mt-6 px-6 py-3 bg-yellow-600 text-white font-bold text-lg rounded-full shadow-lg
+                       hover:bg-yellow-700 transition-colors duration-200"
+          >
+            Check Answers
+          </button>
+          {message && (
+            <div className="mt-4 text-center">
+              <p className="text-lg text-gray-300">{message}</p>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
